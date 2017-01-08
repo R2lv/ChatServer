@@ -1,0 +1,25 @@
+{
+  "name": "chat-server",
+  "version": "1.0.0",
+  "description": "Chat Server using node.js & socket.io",
+  "main": "src/index.js",
+  "dependencies": {
+    "request": "^2.79.0",
+    "querystring": "^0.2.0",
+    "socket.io": "^1.7.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gtabat/ChatServer.git"
+  },
+  "author": "Giorgi Tabatadze",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gtabat/ChatServer/issues"
+  },
+  "homepage": "https://github.com/gtabat/ChatServer#readme"
+}
