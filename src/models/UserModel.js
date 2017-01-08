@@ -80,11 +80,11 @@ const User = function(socket, automaticAuth) {
     };
 
 
-    self.emit = function(socket,name,message) {
+    self.emit = function(name,message) {
         if(!self.authenticated) return;
-        if(self._sockets.indexOf(socket) != -1) {
+        self._sockets.forEach(function(socket) {
             socket.emit(name, message);
-        }
+        });
     };
 
     self.disconnect = function() {
@@ -101,8 +101,8 @@ const User = function(socket, automaticAuth) {
         return self.authenticated && self.info.followers.indexOf(id) != -1;
     };
 
-    self.sendMessage = function(socket, message) {
-        self.emit(socket, "message", message);
+    self.sendMessage = function(message) {
+        self.emit("message", message);
     };
 
     // Initialization

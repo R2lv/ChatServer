@@ -54,7 +54,27 @@ const UsersController = function(io) {
         }
     };
 
+    self.sendToAllBut = function(message, socket) {
+        socket.broadcast.emit("message", message);
+    };
 
+    self.sendTo = function(user, message) {
+        if(typeof user == "object") {
+            user = user.info.id;
+        } else {
+            self._users[user].sendMessage(message);
+        }
+    };
+
+    self.sendToList = function(ids, message) {
+        if(Array.isArray(ids)) {
+            ids.forEach(function(id) {
+                if(self._users.hasOwnProperty(id)) {
+                    self._users[id].sendMessage(message);
+                }
+            });
+        }
+    }
 
 };
 
