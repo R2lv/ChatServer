@@ -1,7 +1,7 @@
 {
   "name": "chat-server",
   "version": "1.0.0",
-  "description": "Chat Server using node.js & socket.io",
+  "description": "Chat Server using node.js & socket.io for PHP or any back-end scripting language",
   "main": "src/index.js",
   "dependencies": {
     "request": "^2.79.0",

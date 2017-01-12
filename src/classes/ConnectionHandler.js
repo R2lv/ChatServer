@@ -1,49 +1,57 @@
 const User = require("./User");
 const Client = require("./Client");
 
-const ConnectionHandler = function(io) {
+/**
+ * Creates new ConnectionHandler object that handles socket.io connections, this is base class of the framework
+ * @class
+ * @param {Object} io Socket.io object that should be handled by framework
+ * @param {object} config Config variable
+ * */
+const ConnectionHandler = function(io, config) {
     const self = this;
 
     // Private Variables
-    const _users = {};
-    const _listeners = {};
+    const _users = new Map();
+    const _listeners = new Map();
 
     // Public Variables
 
 
     // Private Functions
     const _triggerEvent = function(event, ...args) {
-        if(_listeners.hasOwnProperty(event)) {
-            for(let fn of _listeners[event]) {
+        if(_listeners.has(event)) {
+            for(let fn of _listeners.get(event)) {
                 fn.call(...args);
             }
         }
     };
 
+
     const _setUserListeners = function(user) {
+
         user.addListener("offline", function() {
             self.removeUserById(user.profile.id);
         });
+
     };
 
-
-    self.addClientToUser = function(client) {
-
-        if(!_users.hasOwnProperty(client.info.userId)) {
-            _users[client.info.userId] = new User();
-            _setUserListeners(_users[client.info.userId]);
-            _triggerEvent("user connected", self, _users[client.info.userId]);
+    const _setConfig = function() {
+        if(config===undefined) return;
+        if(config.identification) {
+            Client.prototype.identification = config.identification;
         }
-
-        _users[client.info.userId].addClient(client);
-
+        if(config.authentication) {
+            Client.prototype.authentication = config.authentication;
+        }
     };
 
-    self._init = function() {
+
+    const init = function() {
+
+        _setConfig();
+
         io.on("connection", function(socket) {
-
             let client = new Client(socket);
-
             client.identify(function() {
                 self.addClientToUser(this);
             });
@@ -51,73 +59,118 @@ const ConnectionHandler = function(io) {
         });
     };
 
-    self._init();
+    init();
 
-    self.removeUserById = function(id) {
-        delete _users[id];
+    /**
+     * Adds client to the relevant user, if there's not such user, creates new and fires "user connected" event
+     * @public
+     * @method
+     * @param {Client} client Newly connected client (socket)
+     * */
+    self.addClientToUser = function(client) {
+
+        if(!_users.has(client.info.userId)) {
+            _users.set(client.info.userId, new User());
+            _setUserListeners(_users.get(client.info.userId));
+            _triggerEvent("user connected", self, _users.get(client.info.userId));
+        }
+
+        _users.get(client.info.userId).addClient(client);
+
     };
 
-    self.getUserById = function(id) {
-        return _users[id];
+    /**
+     * Disconnects user by id
+     * @public
+     * @method
+     * @param {Number|string} id Id of the user to be disconnected
+     * */
+    self.disconnectUser = function(id) {
+        if(_users.has(id)) {
+            _users.get(id).disconnect();
+        }
     };
 
-    self.addListener = function(type, func) {
-        if(_listeners.hasOwnProperty(type)) {
-            _listeners[type].push(func);
+    /**
+     * Returns User object associated to id
+     * @public
+     * @method
+     * @param {string,number} id ID of the user to be returned
+     * */
+    self.getUser = function(id) {
+        return _users.get(id);
+    };
+
+    self.addListener = function(type, fn) {
+        if(_listeners.has(type)) {
+            _listeners.get(type).push(fn);
         } else {
-            _listeners[type] = [func];
+            _listeners.set(type, [fn]);
         }
     };
 
-    /*
-    * @param {object} user All but this user will receive the message
-    * @param {object} message Message Object
-    **/
-    self.sendToAllBut = function(user, message) {
-        for(const key in _users) {
-            if(user.id === _users[key].id) {
+    /**
+     * Send message to all users except one
+     * @public
+     * @method
+     * @param {User} user All user except this will receive the message
+     * @param {object} message Message object
+     * */
+    self.sendToAllExcept = function(user, message) {
+        _users.forEach(function(user, _id) {
+            if(user.id === _id) {
+                return;
+            }
+            user.sendMessage(message);
+        });
+    };
+
+    /**
+     * Emit data to all users except one
+     * @public
+     * @method
+     * @param {User} user All user except this will receive the data
+     * @param {string} name Name of the data to be emitted
+     * @param {Array|Object|string} data Data to be emitted
+     * */
+    self.emitToAllExcept = function(user, name, data) {
+        for(let [key,usr] of _users) {
+            if(user.info.id === key) {
                 continue;
             }
-            _users[key].sendMessage(message);
+            usr.emit(name, data);
         }
     };
 
-    /*
-    * @param {object} user All but this user will receive the message
-    * @param {object} message Message Object
-    **/
-    self.emitToAllBut = function(user, name, data) {
-        for(const key in _users) {
-            if(user.info.id === _users[key].info.id) {
-                continue;
-            }
-            _users[key].emit(name, data);
-        }
-    };
-
-    /*
-    * @param {object} user User who will receive the message
-    * @param {object} message Message Object
-    **/
+    /**
+     * Send message to user
+     * @public
+     * @method
+     * @param {User} user User to send message to
+     * @param {object} message Message Object
+     * */
     self.sendTo = function(user, message) {
         if(typeof user == "object") {
             user = user.info.id;
         }
-        if(_users.hasOwnProperty(user)) {
-            _users[user].sendMessage(message);
+        if(_users.has(user)) {
+            _users.get(user).sendMessage(message);
         }
     };
 
-    /*
-    * @param {object} user User who will receive the message
-    * @param {object} message Message Object
-    **/
+    /**
+     * Emit data to user
+     * @public
+     * @method
+     * @param {User} user User who will receive the data
+     * @param {string} name Name of the data to be emitted
+     * @param {Array|string|object} data Data to be emitted
+     * */
     self.emitTo = function(user, name, data) {
-        if(typeof user == "object") {
-            user = user.info.id;
-        } else {
-            _users[user].emit(name, data);
+        if(typeof user != "object") {
+            user = _users.get(user);
         }
+        user.emit(name, data);
     };
 
     /*
@@ -127,23 +180,24 @@ const ConnectionHandler = function(io) {
     self.sendToList = function(ids, message) {
         if(Array.isArray(ids)) {
             ids.forEach(function(id) {
-                if(_users.hasOwnProperty(id)) {
-                    _users[id].sendMessage(message);
+                if(_users.has(id)) {
+                    _users.get(id).sendMessage(message);
                 }
             });
         }
     };
 
-    /*
-    * @param {array} ids ID's of the users who will receive the event by name.
-    * @param {object|string|array} data Object to be send
-    **/
+    /**
+     * @param {Array} ids ID's of the users who will receive data by name.
+     * @param {string} name Name of the data to be emitted
+     * @param {object|string|Array} data Data to be emitted
+     *
+     * */
     self.emitToList = function(ids, name, data) {
         if(Array.isArray(ids)) {
             ids.forEach(function(id) {
-                if(_users.hasOwnProperty(id)) {
-                    console.log("Emitting to", id);
-                    _users[id].emit(name, data);
+                if(_users.has(id)) {
+                    _users.get(id).emit(name, data);
                 }
             });
         }

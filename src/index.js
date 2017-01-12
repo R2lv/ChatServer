@@ -1,9 +1,44 @@
 const io = require("socket.io")(2017);
+const Api = require("./classes/Api");
 // var User = require("./models/UserModel");
 const ConnectionHandler = require("./classes/ConnectionHandler");
 
+const api = new Api("http://social:85");
 
-const handler = new ConnectionHandler(io);
+const handler = new ConnectionHandler(io, {
+    /*
+
+    authentication: function(info, callback) {
+        api.post("/io/io.php", {password: "123456789"}, function(err,res,body) {
+            let profile = {
+                id: body.userid,
+                fullname: body.fullname,
+                followers: body.followers.split(","),
+                following: body.following.split(","),
+                image: body.image
+            };
+            callback(profile);
+        }, {
+            "Cookie": "PHPSESSID="+info.sessionId
+        });
+    },
+    identification: function(callback) {
+        api.post("/io/io.php", {password: "123456789"}, function(err,res,body) {
+            if(body.error===0) {
+                callback({
+                    userId: body.userId,
+                    sessionId: body.sessionId
+                });
+            } else {
+                socket.disconnect();
+            }
+        }, {
+            "Cookie": "PHPSESSID="+data
+        });
+    }
+
+    */
+});
 
 handler.addListener("user connected", function(user) {
 
@@ -23,8 +58,12 @@ handler.addListener("user connected", function(user) {
         console.log(`${client.info.userId} client disconnected from ${this.profile.fullname}, left ${this.getClientLength()}`);
     });
 
-    user.addListener("message", function(data) {
+    user.addListener("message", function(data, client) {
         console.log(data);
+    });
+
+    user.on("test", function() {
+        console.log(this);
     });
 
 });
@@ -71,7 +110,7 @@ usersController.addListener("userConnected", function(user) {
                 self.sendTo(data.user, message);
                 break;
             case "ALL":
-                self.sendToAllBut(message, socket);
+                self.sendToAllExcept(message, socket);
                 break;
             case "FOLLOWERS":
                 self.sendToList(this.followers, message);
